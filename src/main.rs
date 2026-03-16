@@ -39,6 +39,12 @@ fn handle_client(mut stream: TcpStream) -> Result<()>{
     println!("Client version {}", client_version_str);
 
 
+    let payload = read_ssh_packet(&mut stream)?;
+
+println!("Received {} bytes", payload.len());
+
+send_kexinit(&mut stream)?;
+
     if !client_version_str.starts_with("SSH-2.0-") {
         println!("Not a valid ssh client");
         return Ok(());
@@ -109,8 +115,33 @@ fn send_kexinit(stream: &mut TcpStream) -> std::io::Result<()> { //kexinit ни�
 
     println!("Sent SSH_MSG_KEXINIT");
 
+    
     Ok(())
 }
+
+fn read_u32(data: &[u8], pos: &mut usize ) -> u32 {
+    let value = u32::from_be_bytes([
+        data[*pos],
+        data[*pos + 1],
+        data[*pos + 2],
+        data[*pos + 3],
+    ]);
+
+    *pos += 4;
+
+    value
+} 
+
+fn read_namelist(data: &[u8], pos: &mut usize ) -> String {
+    let lenght = read_u32(data, pos) as usize;
+
+    let bytes = &data[*pos..*pos +lenght];
+
+    *pos += lenght;
+
+    String::from_utf8_lossy(bytes).to_string()
+}
+
 
 
 fn main() -> Result<()>{
@@ -118,6 +149,7 @@ fn main() -> Result<()>{
     let listener = TcpListener::bind("127.0.0.1:8080")?;
     println!("sshit listening on 127.0.0.1:8088");
 
+    
     
     for stream in listener.incoming() {
         match stream {
